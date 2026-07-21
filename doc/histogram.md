@@ -48,19 +48,26 @@ chaque cours, `homogeneity_score` :
 
 1. Calcule, pour chacune des 4 maisons, la moyenne de ses notes sur ce
    cours via `math_utils.mean` (ignore deja les NaN).
-2. Calcule l'ecart-type de ces 4 moyennes via `math_utils.std`.
+2. Calcule l'ecart-type de ces 4 moyennes, normalise par l'ecart-type de
+   toutes les notes du cours, via `math_utils.relative_std`.
 
-Plus cet ecart-type est bas, plus les 4 maisons ont des notes centrees au
-meme endroit sur ce cours -> distribution homogene entre maisons. Ce n'est
-**pas** une nouvelle fonction statistique cachee : c'est une reutilisation
-directe de `mean`/`std`, deja recodes a la main dans `math_utils.py` pour
-`describe.py`. Aucun ajout n'a ete fait a `math_utils.py` pour ce script.
+L'ecart-type des 4 moyennes seul n'est pas comparable d'un cours a
+l'autre : un cours a petite echelle (ex. Care of Magical Creatures, notes
+entre -3 et 3) aura mecaniquement un ecart-type petit, sans etre pour
+autant plus "homogene" qu'un cours a grande echelle (ex. Arithmancy, notes
+entre -20000 et 100000). `relative_std` corrige ce biais en divisant par
+la dispersion propre du cours, ce qui rend le score comparable entre
+cours d'unites differentes. Plus ce ratio est bas, plus les 4 maisons ont
+des notes centrees au meme endroit sur ce cours (relativement a la
+dispersion du cours) -> distribution homogene entre maisons. Ce n'est
+**pas** une nouvelle fonction statistique cachee : `relative_std` reutilise
+directement `std`, deja recode a la main dans `math_utils.py` pour
+`describe.py`.
 
-Sur `dataset_train.csv`, le cours le plus homogene est
-`Care of Magical Creatures` (ecart-type des 4 moyennes ~0.06, tres
-inferieur aux autres cours dont l'ecart-type des moyennes depasse souvent
-plusieurs unites) — visible aussi sur l'histogramme correspondant, ou les
-4 distributions se superposent presque parfaitement.
+Sur `dataset_train.csv`, le cours le plus homogene est `Arithmancy`
+(ratio ~0.03, devant Care of Magical Creatures ~0.065) — le classement
+brut (non normalise) placait Care of Magical Creatures en tete, biais
+d'echelle desormais corrige.
 
 ## Rendu graphique
 
@@ -71,6 +78,16 @@ couleurs officielles de chaque maison : rouge Gryffondor, jaune Poufsouffle,
 bleu Serdaigle, vert Serpentard). Une legende commune est affichee une
 seule fois pour toute la figure. Les subplots excedentaires (grille pas
 totalement remplie) sont masques (`ax.axis("off")`).
+
+Les notes tracees sont standardisees par `standardized_scores_by_house`
+(reutilise `math_utils.standardize` avec la moyenne/ecart-type du cours
+entier, pas de nouveau calcul statistique) : chaque subplot est donc en
+unites d'ecart-type, avec le meme axe x (`ax.set_xlim(-4, 4)`) pour tous
+les cours. Ca rend les 13 histogrammes visuellement comparables malgre
+des echelles brutes tres differentes (ex. Arithmancy en dizaines de
+milliers vs Care of Magical Creatures entre -3 et 3), et fait coincider la
+lecture visuelle avec le classement numerique (`homogeneity_score`), lui
+aussi normalise.
 
 ## Erreurs specifiques a ce script
 
@@ -85,8 +102,8 @@ Les erreurs de fichier (introuvable, CSV illisible) sont gerees par
 
 ## Limites / extensions futures non implementees
 
-Le classement d'homogeneite se base uniquement sur l'ecart-type des
-moyennes par maison ; une metrique combinant aussi la dispersion
-intra-maison (ex. ecart-type moyen de chaque maison) pourrait affiner le
-classement mais n'est pas necessaire pour repondre a la question du sujet
-— non implementee ici.
+Le classement d'homogeneite se base uniquement sur l'ecart-type
+(normalise) des moyennes par maison ; une metrique combinant aussi la
+dispersion intra-maison (ex. ecart-type moyen de chaque maison) pourrait
+affiner encore le classement mais n'est pas necessaire pour repondre a la
+question du sujet — non implementee ici.
