@@ -12,12 +12,18 @@
   applique (train+predict), `select_features(df, None)` auto-détecte et rend
   la liste résolue à sauvegarder.
 
+- `src/logreg_train.py` — FAIT & lancé. Briques math + add_bias +
+  gradient_descent + train_one_vs_all + save_weights (JSON) + main/argparse.
+  Run OK : coûts finaux 0.04–0.07, `weights.json` généré (format JSON :
+  features, houses, means, stds, weights{maison: theta}).
+- Hyperparams actuels : lr=0.5, iterations=2000.
+
 ## En cours
-- Briques math de `logreg_train.py` : sigmoid → hypothesis → cost → gradient.
+- `src/logreg_predict.py` : à écrire (charge weights.json, transform, argmax,
+  génère houses.csv).
 
 ## À faire
-- Boucle de descente + one-vs-all + export poids, puis `logreg_predict.py`,
-  puis tuning ≥ 98 %.
+- Génération `houses.csv` + tuning accuracy ≥ 98 %.
 
 ## Datasets
 - `data/dataset_train.csv` (avec Hogwarts House), `data/dataset_test.csv` (House vide).
