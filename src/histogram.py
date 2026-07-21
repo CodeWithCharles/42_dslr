@@ -19,28 +19,11 @@ import sys
 
 import matplotlib.pyplot as plt
 
+from houses import HOUSE_COLORS, HOUSES, require_house_column, scores_by_house
 from loader import load_csv, numeric_columns
 from math_utils import mean, relative_std, standardize
 
-HOUSE_COLUMN: str = "Hogwarts House"
-HOUSES: tuple[str, ...] = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
-HOUSE_COLORS: dict[str, str] = {
-    "Gryffindor": "#ae0001",
-    "Hufflepuff": "#ecb939",
-    "Ravenclaw": "#222f5b",
-    "Slytherin": "#2a623d",
-}
 BINS: int = 20
-
-
-def scores_by_house(df, course: str) -> dict[str, list[float]]:
-    """Extrait, pour un cours donne, la liste des notes non manquantes de
-    chaque maison."""
-    result: dict[str, list[float]] = {}
-    for house in HOUSES:
-        values = df.loc[df[HOUSE_COLUMN] == house, course].tolist()
-        result[house] = [v for v in values if not math.isnan(v)]
-    return result
 
 
 def standardized_scores_by_house(df, course: str) -> dict[str, list[float]]:
@@ -124,12 +107,7 @@ def main() -> None:
     """Point d'entree : python3 histogram.py <dataset.csv> [--save <fichier.png>]."""
     path, save_path = _parse_args(sys.argv)
     df = load_csv(path)
-
-    if HOUSE_COLUMN not in df.columns or df[HOUSE_COLUMN].isna().all():
-        raise SystemExit(
-            f"Erreur : ce dataset ne contient pas de valeurs exploitables dans "
-            f"'{HOUSE_COLUMN}' (histogramme par maison impossible)."
-        )
+    require_house_column(df)
 
     courses = [c for c in numeric_columns(df) if c != "Index"]
     if not courses:
