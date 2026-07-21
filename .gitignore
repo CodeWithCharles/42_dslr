@@ -10,3 +10,4 @@ houses.csv
 *.csv
 !datasets/dataset_train.csv
 !datasets/dataset_test.csv
+*dslr.pdf
