@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+weights.csv
+houses.csv
+.vscode/
+.idea/
+*.csv
+!datasets/dataset_train.csv
+!datasets/dataset_test.csv
