@@ -20,7 +20,7 @@ import sys
 import matplotlib.pyplot as plt
 
 from loader import load_csv, numeric_columns
-from math_utils import mean, std
+from math_utils import mean, relative_std, standardize
 
 HOUSE_COLUMN: str = "Hogwarts House"
 HOUSES: tuple[str, ...] = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
@@ -43,13 +43,25 @@ def scores_by_house(df, course: str) -> dict[str, list[float]]:
     return result
 
 
+def standardized_scores_by_house(df, course: str) -> dict[str, list[float]]:
+    """Comme scores_by_house, mais les notes sont standardisees
+    (math_utils.standardize) avec la moyenne/ecart-type du cours entier :
+    rend les histogrammes comparables entre cours d'echelles differentes."""
+    raw = scores_by_house(df, course)
+    _, m, s = standardize(df[course].tolist())
+    return {house: [(v - m) / s for v in values] for house, values in raw.items()}
+
+
 def homogeneity_score(df, course: str) -> float:
     """Mesure a quel point les 4 maisons ont des notes centrees pareil sur
-    ce cours : ecart-type (math_utils.std) des 4 moyennes par maison
-    (math_utils.mean). Plus le score est bas, plus la distribution est
-    homogene entre maisons."""
+    ce cours : ecart-type des 4 moyennes par maison (math_utils.mean),
+    normalise par l'ecart-type de toutes les notes du cours
+    (math_utils.relative_std) pour rendre le score comparable entre cours
+    d'echelles tres differentes (ex. Arithmancy vs Care of Magical
+    Creatures). Plus le score est bas, plus la distribution est homogene
+    entre maisons."""
     house_means = [mean(values) for values in scores_by_house(df, course).values()]
-    return std(house_means)
+    return relative_std(house_means, df[course].tolist())
 
 
 def rank_courses(df, courses: list[str]) -> list[tuple[str, float]]:
@@ -61,7 +73,7 @@ def rank_courses(df, courses: list[str]) -> list[tuple[str, float]]:
 
 def print_ranking(ranking: list[tuple[str, float]]) -> None:
     """Affiche le classement d'homogeneite et met en avant la reponse."""
-    print("Classement d'homogeneite (ecart-type des moyennes par maison, du plus au moins homogene) :")
+    print("Classement d'homogeneite (ecart-type des moyennes par maison / ecart-type du cours, du plus au moins homogene) :")
     for course, score in ranking:
         print(f"  {course:<32} {score:.6f}")
     best_course, _ = ranking[0]
@@ -70,17 +82,21 @@ def print_ranking(ranking: list[tuple[str, float]]) -> None:
 
 def plot_histograms(df, courses: list[str], save_path: str | None = None) -> None:
     """Trace une grille d'histogrammes (un par cours), 4 series superposees
-    par maison, et affiche ou sauvegarde la figure."""
+    par maison, et affiche ou sauvegarde la figure. Les notes sont
+    standardisees par cours (standardized_scores_by_house) pour que tous
+    les subplots partagent la meme echelle (ecart-types), comparable
+    d'un cours a l'autre malgre des unites brutes tres differentes."""
     n_cols = 4
     n_rows = math.ceil(len(courses) / n_cols)
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows))
     axes_flat = axes.flatten() if len(courses) > 1 else [axes]
 
     for ax, course in zip(axes_flat, courses):
-        for house, values in scores_by_house(df, course).items():
+        for house, values in standardized_scores_by_house(df, course).items():
             if values:
                 ax.hist(values, bins=BINS, alpha=0.5, label=house, color=HOUSE_COLORS[house])
         ax.set_title(course, fontsize=9)
+        ax.set_xlim(-4, 4)
 
     for ax in axes_flat[len(courses):]:
         ax.axis("off")
