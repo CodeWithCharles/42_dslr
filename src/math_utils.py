@@ -20,8 +20,6 @@ Contrat commun :
   l'interpolation lineaire, pour matcher pandas au chiffre pres.
 """
 
-from __future__ import annotations
-
 import math
 from collections.abc import Iterable
 

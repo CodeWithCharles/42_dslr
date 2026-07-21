@@ -11,8 +11,6 @@ colonnes : aucun calcul statistique n'y est fait (ceux-la sont recodes a
 la main dans math_utils.py).
 """
 
-from __future__ import annotations
-
 import pandas as pd
 
 
