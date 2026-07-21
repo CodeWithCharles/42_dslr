@@ -126,6 +126,19 @@ def percentile(values: Iterable, p: float) -> float:
 # Preparation des features
 # ---------------------------------------------------------------------------
 
+def relative_std(values: Iterable, reference: Iterable) -> float:
+    """Ecart-type de `values` normalise par l'ecart-type de `reference`.
+
+    Rend deux ecarts-types comparables meme si `values` et `reference` ne
+    sont pas sur la meme echelle (ex. comparer l'homogeneite de plusieurs
+    cours aux unites tres differentes). Reutilise directement `std`.
+    """
+    ref_std = std(reference)
+    if ref_std == 0 or math.isnan(ref_std):
+        return float("nan")
+    return std(values) / ref_std
+
+
 def fill_na_with_mean(values: Iterable, m: float | None = None) -> list[float]:
     """Remplace les NaN d'une colonne par la moyenne (imputation simple).
 
