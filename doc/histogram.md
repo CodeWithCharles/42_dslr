@@ -4,8 +4,10 @@ Trace, pour chaque cours (colonne numerique hors `Index`), un histogramme
 des notes ventilees par maison de Poudlard, et repond a la question posee
 par le sujet : *quel cours a une distribution de notes homogene entre les
 4 maisons ?* Voir [`doc/common.md`](common.md) pour le socle partage
-(`loader.py`, `math_utils.py`, formules, regle d'or du sujet) : ce document
-ne detaille que ce qui est propre a ce script.
+(`loader.py`, `math_utils.py`, formules, regle d'or du sujet) et
+[`doc/houses.md`](houses.md) pour les helpers de maison partages avec
+`scatter_plot.py` : ce document ne detaille que ce qui est propre a ce
+script.
 
 ## Utilisation
 
@@ -24,13 +26,14 @@ pour le cas `dataset_test.csv`.
 
 1. `loader.load_csv(path)` charge le CSV (erreurs fichier deja gerees,
    voir `doc/common.md`).
-2. Verification que la colonne `"Hogwarts House"` existe et contient au
-   moins une valeur exploitable (sinon `SystemExit`, voir plus bas).
+2. `houses.require_house_column(df)` verifie que `"Hogwarts House"` existe
+   et contient au moins une valeur exploitable (sinon `SystemExit`, voir
+   plus bas).
 3. `loader.numeric_columns(df)` recupere les colonnes numeriques, `Index`
    retire de la liste — comme dans `describe.py`.
 4. Pour chaque cours restant, `rank_courses` appelle `homogeneity_score`,
-   qui appelle `scores_by_house` (repartition des notes par maison) puis
-   `math_utils.mean`/`math_utils.std` (voir plus bas).
+   qui appelle `houses.scores_by_house` (repartition des notes par maison)
+   puis `math_utils.mean`/`math_utils.std` (voir plus bas).
 5. `print_ranking` affiche le classement complet sur stdout et met en
    avant le cours le plus homogene (reponse a la question du sujet).
 6. `plot_histograms` construit la grille de figures et l'affiche
@@ -94,7 +97,7 @@ aussi normalise.
 | Cas | Message / comportement |
 |---|---|
 | Nombre d'arguments invalide | `SystemExit("Usage : python3 histogram.py <dataset.csv> [--save <fichier.png>]")` |
-| Colonne `Hogwarts House` absente ou entierement vide | `SystemExit("Erreur : ce dataset ne contient pas de valeurs exploitables dans 'Hogwarts House' (histogramme par maison impossible).")` — cas de `dataset_test.csv`, ou les maisons sont a predire, pas connues |
+| Colonne `Hogwarts House` absente ou entierement vide | Voir `houses.require_house_column` (`doc/houses.md`) — cas de `dataset_test.csv`, ou les maisons sont a predire, pas connues |
 | Aucune colonne numerique hors `Index` | `SystemExit("Erreur : aucune colonne numerique exploitable dans ce fichier (hors 'Index').")` |
 
 Les erreurs de fichier (introuvable, CSV illisible) sont gerees par

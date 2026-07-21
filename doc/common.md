@@ -1,11 +1,13 @@
 # Socle commun du projet DSLR
 
 Ce document decrit ce qui est partage par TOUS les scripts du sujet
-(`describe.py`, `histogram.py`, et plus tard `scatter_plot.py`,
+(`describe.py`, `histogram.py`, `scatter_plot.py`, et plus tard
 `pair_plot.py`, `logreg_train.py`, `logreg_predict.py`) : le chargement des
 donnees et le calcul des statistiques. Chaque script a sa propre doc dans
-`doc/` (ex. `doc/describe.md`, `doc/histogram.md`) pour ce qui lui est
-specifique ; ce fichier n'est pas duplique ailleurs.
+`doc/` (ex. `doc/describe.md`, `doc/histogram.md`, `doc/scatter_plot.md`)
+pour ce qui lui est specifique ; les helpers de maison partages entre
+scripts de visualisation sont dans `houses.py` / `doc/houses.md`. Ce
+fichier n'est pas duplique ailleurs.
 
 ## Regle d'or du sujet
 
@@ -61,6 +63,13 @@ les memes valeurs que `pandas.DataFrame.describe()` sans jamais l'appeler.
   est retournee directement (pas d'interpolation inutile).
 
 Toutes retournent `NaN` si la sequence ne contient aucune valeur exploitable.
+
+- `pearson_correlation(x, y) -> float` : coefficient de correlation de
+  Pearson entre deux colonnes alignees, `cov(x, y) / (std(x) * std(y))`.
+  Nettoie les paires par NaN alignes (une valeur manquante sur l'un des
+  deux axes retire la paire entiere), diviseur `n-1` pour la covariance
+  (coherent avec `std`). Utilise par `scatter_plot.py` (voir
+  `doc/scatter_plot.md`).
 
 ### Helpers de preparation des features
 
