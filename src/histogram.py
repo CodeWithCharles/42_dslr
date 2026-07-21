@@ -1,0 +1,131 @@
+"""
+histogram.py — Histogrammes des notes par maison, par cours.
+
+Pour chaque cours (colonne numerique hors 'Index'), trace un histogramme
+des notes ventilees par maison de Poudlard (4 series superposees), afin de
+repondre a la question du sujet : quel cours a une distribution de notes
+homogene entre les 4 maisons ? Le classement d'homogeneite est calcule
+avec math_utils.mean/std (aucun nouveau calcul statistique ajoute) ; voir
+doc/common.md pour le socle partage et doc/histogram.md pour le
+fonctionnement propre a ce script.
+
+Usage : python3 histogram.py <dataset.csv> [--save <fichier.png>]
+"""
+
+from __future__ import annotations
+
+import math
+import sys
+
+import matplotlib.pyplot as plt
+
+from loader import load_csv, numeric_columns
+from math_utils import mean, std
+
+HOUSE_COLUMN: str = "Hogwarts House"
+HOUSES: tuple[str, ...] = ("Gryffindor", "Hufflepuff", "Ravenclaw", "Slytherin")
+HOUSE_COLORS: dict[str, str] = {
+    "Gryffindor": "#ae0001",
+    "Hufflepuff": "#ecb939",
+    "Ravenclaw": "#222f5b",
+    "Slytherin": "#2a623d",
+}
+BINS: int = 20
+
+
+def scores_by_house(df, course: str) -> dict[str, list[float]]:
+    """Extrait, pour un cours donne, la liste des notes non manquantes de
+    chaque maison."""
+    result: dict[str, list[float]] = {}
+    for house in HOUSES:
+        values = df.loc[df[HOUSE_COLUMN] == house, course].tolist()
+        result[house] = [v for v in values if not math.isnan(v)]
+    return result
+
+
+def homogeneity_score(df, course: str) -> float:
+    """Mesure a quel point les 4 maisons ont des notes centrees pareil sur
+    ce cours : ecart-type (math_utils.std) des 4 moyennes par maison
+    (math_utils.mean). Plus le score est bas, plus la distribution est
+    homogene entre maisons."""
+    house_means = [mean(values) for values in scores_by_house(df, course).values()]
+    return std(house_means)
+
+
+def rank_courses(df, courses: list[str]) -> list[tuple[str, float]]:
+    """Classe les cours du plus homogene (score le plus bas) au moins
+    homogene."""
+    scored = [(course, homogeneity_score(df, course)) for course in courses]
+    return sorted(scored, key=lambda item: item[1])
+
+
+def print_ranking(ranking: list[tuple[str, float]]) -> None:
+    """Affiche le classement d'homogeneite et met en avant la reponse."""
+    print("Classement d'homogeneite (ecart-type des moyennes par maison, du plus au moins homogene) :")
+    for course, score in ranking:
+        print(f"  {course:<32} {score:.6f}")
+    best_course, _ = ranking[0]
+    print(f"\nCours le plus homogene entre les 4 maisons : {best_course}")
+
+
+def plot_histograms(df, courses: list[str], save_path: str | None = None) -> None:
+    """Trace une grille d'histogrammes (un par cours), 4 series superposees
+    par maison, et affiche ou sauvegarde la figure."""
+    n_cols = 4
+    n_rows = math.ceil(len(courses) / n_cols)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows))
+    axes_flat = axes.flatten() if len(courses) > 1 else [axes]
+
+    for ax, course in zip(axes_flat, courses):
+        for house, values in scores_by_house(df, course).items():
+            if values:
+                ax.hist(values, bins=BINS, alpha=0.5, label=house, color=HOUSE_COLORS[house])
+        ax.set_title(course, fontsize=9)
+
+    for ax in axes_flat[len(courses):]:
+        ax.axis("off")
+
+    handles, labels = axes_flat[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper right")
+    fig.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path)
+    else:
+        plt.show()
+
+
+def _parse_args(argv: list[str]) -> tuple[str, str | None]:
+    """Parse les arguments : chemin du dataset et option --save optionnelle."""
+    if len(argv) == 2:
+        return argv[1], None
+    if len(argv) == 4 and argv[2] == "--save":
+        return argv[1], argv[3]
+    raise SystemExit("Usage : python3 histogram.py <dataset.csv> [--save <fichier.png>]")
+
+
+def main() -> None:
+    """Point d'entree : python3 histogram.py <dataset.csv> [--save <fichier.png>]."""
+    path, save_path = _parse_args(sys.argv)
+    df = load_csv(path)
+
+    if HOUSE_COLUMN not in df.columns or df[HOUSE_COLUMN].isna().all():
+        raise SystemExit(
+            f"Erreur : ce dataset ne contient pas de valeurs exploitables dans "
+            f"'{HOUSE_COLUMN}' (histogramme par maison impossible)."
+        )
+
+    courses = [c for c in numeric_columns(df) if c != "Index"]
+    if not courses:
+        raise SystemExit(
+            "Erreur : aucune colonne numerique exploitable dans ce fichier "
+            "(hors 'Index')."
+        )
+
+    ranking = rank_courses(df, courses)
+    print_ranking(ranking)
+    plot_histograms(df, courses, save_path)
+
+
+if __name__ == "__main__":
+    main()

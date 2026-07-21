@@ -1,11 +1,11 @@
 # Socle commun du projet DSLR
 
 Ce document decrit ce qui est partage par TOUS les scripts du sujet
-(`describe.py`, et plus tard `histogram.py`, `scatter_plot.py`,
+(`describe.py`, `histogram.py`, et plus tard `scatter_plot.py`,
 `pair_plot.py`, `logreg_train.py`, `logreg_predict.py`) : le chargement des
 donnees et le calcul des statistiques. Chaque script a sa propre doc dans
-`doc/` (ex. `doc/describe.md`) pour ce qui lui est specifique ; ce fichier
-n'est pas duplique ailleurs.
+`doc/` (ex. `doc/describe.md`, `doc/histogram.md`) pour ce qui lui est
+specifique ; ce fichier n'est pas duplique ailleurs.
 
 ## Regle d'or du sujet
 
