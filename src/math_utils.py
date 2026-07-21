@@ -126,6 +126,61 @@ def percentile(values: Iterable, p: float) -> float:
 # Preparation des features
 # ---------------------------------------------------------------------------
 
+def _clean_pairs(x: Iterable, y: Iterable) -> tuple[list[float], list[float]]:
+    """Nettoie deux sequences alignees en supprimant les paires ou au
+    moins une des deux valeurs est manquante (comportement pandas .corr())."""
+    xs: list[float] = []
+    ys: list[float] = []
+    for xv, yv in zip(x, y):
+        try:
+            fx = float(xv)
+            fy = float(yv)
+        except (TypeError, ValueError):
+            continue
+        if math.isnan(fx) or math.isnan(fy):
+            continue
+        xs.append(fx)
+        ys.append(fy)
+    return xs, ys
+
+
+def pearson_correlation(x: Iterable, y: Iterable) -> float:
+    """Coefficient de correlation de Pearson entre deux colonnes alignees.
+
+    cov(x, y) / (std(x) * std(y)), recode a la main (ni numpy.corrcoef, ni
+    pandas.DataFrame.corr(), ni statistics.correlation). Les paires ou une
+    des deux valeurs est manquante sont ignorees.
+    """
+    xs, ys = _clean_pairs(x, y)
+    n = len(xs)
+    if n < 2:
+        return float("nan")
+    mx = mean(xs)
+    my = mean(ys)
+    covariance = 0.0
+    for xv, yv in zip(xs, ys):
+        covariance += (xv - mx) * (yv - my)
+    covariance /= n - 1
+    sx = std(xs)
+    sy = std(ys)
+    if sx == 0 or sy == 0 or math.isnan(sx) or math.isnan(sy):
+        return float("nan")
+    return covariance / (sx * sy)
+
+
+def relative_std(values: Iterable, reference: Iterable) -> float:
+    """Ecart-type de `values` normalise par l'ecart-type de `reference`.
+
+    Rend deux ecarts-types comparables meme si `values` et `reference` ne
+    sont pas sur la meme echelle (ex. comparer l'homogeneite de plusieurs
+    cours aux unites tres differentes). Reutilise directement `std`.
+    """
+    ref_std = std(reference)
+    if ref_std == 0 or math.isnan(ref_std):
+        return float("nan")
+    return std(values) / ref_std
+
+
 def fill_na_with_mean(values: Iterable, m: float | None = None) -> list[float]:
     """Remplace les NaN d'une colonne par la moyenne (imputation simple).
 
