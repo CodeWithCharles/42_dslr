@@ -20,3 +20,12 @@
 - **Emplacement** : tous les modules à la racine de `src/` (imports plats).
 - **Biais** : colonne de 1 ajoutée côté logreg (train/predict), pas dans
   preprocessing (qui reste une matrice de features pure).
+- **pair_plot** : matrice construite à la main (matplotlib + helpers de
+  houses.py), PAS `seaborn.pairplot` (rendu maison + cohérence avec
+  scatter/histogram, et pairplot calcule des KDE = zone grise vs règle d'or).
+  argparse (diverge de histogram/scatter en sys.argv — assumé).
+- **Piège perf pair_plot (169 axes)** : NE PAS utiliser `fig.tight_layout()`
+  (~40s sur grosse grille) → `fig.subplots_adjust(...)`. Supprimer les ticks
+  avec `set_xticks([])`/`set_yticks([])` (pas juste les labels) → ~25s de
+  gagnées. `rasterized=True` sur les scatters. Résultat : ~70s → ~5s.
+  L'affichage interactif reste lent par nature → préférer `--save`.

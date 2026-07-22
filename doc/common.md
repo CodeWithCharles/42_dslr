@@ -70,10 +70,16 @@ Toutes retournent `NaN` si la sequence ne contient aucune valeur exploitable.
   deux axes retire la paire entiere), diviseur `n-1` pour la covariance
   (coherent avec `std`). Utilise par `scatter_plot.py` (voir
   `doc/scatter_plot.md`).
+- `relative_std(values, reference) -> float` : ecart-type de `values` divise
+  par l'ecart-type de `reference` (`std(values) / std(reference)`). Rend deux
+  dispersions comparables meme sur des echelles differentes ; renvoie `NaN` si
+  l'ecart-type de reference est nul ou `NaN`. Utilise par `histogram.py` pour
+  le score d'homogeneite (voir `doc/histogram.md`).
 
 ### Helpers de preparation des features
 
-Utilises par les scripts d'entrainement/prediction (pas par `describe.py`) :
+Orchestres par `preprocessing.py` (voir [`doc/preprocessing.md`](preprocessing.md))
+pour l'entrainement et la prediction ; pas utilises par `describe.py` :
 
 - `fill_na_with_mean(values, m=None) -> list[float]` : remplace les NaN par
   une moyenne (celle des `values`, ou une moyenne fournie — utile pour
@@ -82,6 +88,16 @@ Utilises par les scripts d'entrainement/prediction (pas par `describe.py`) :
   centre-reduit une colonne `(x - m) / s`. Permet, comme `fill_na_with_mean`,
   de reutiliser au test le `m`/`s` calcules sur le train — indispensable
   pour que les predictions restent coherentes avec l'entrainement.
+
+## `src/preprocessing.py` — preparation des features partagee train/predict
+
+Module intermediaire entre `loader`/`math_utils` et les scripts de modele. Il
+produit la matrice de features `X` de facon identique a l'entrainement et a la
+prediction, avec les memes moyennes/ecarts-types (calcules sur le train,
+reutilises tels quels au test). Il separe `fit_params` (apprentissage des
+parametres, train uniquement) et `transform` (application, train et test).
+Aucun calcul statistique brut n'y est fait : tout est delegue a `math_utils`.
+Detail complet dans [`doc/preprocessing.md`](preprocessing.md).
 
 ## `Index` : toujours exclu des stats et des features
 

@@ -1,17 +1,96 @@
-sigmoid — écrase n'importe quel réel dans ]0, 1[, donc interprétable comme une probabilité. Le np.clip(z, -500, 500) est le seul ajout par rapport à la formule : sans lui, dès que X·theta devient très négatif, np.exp(-z) explose (RuntimeWarning: overflow). À ±500 la sigmoïde vaut déjà 0 ou 1 à la précision d'un float64, donc clipper ne change aucun résultat — ça évite juste les warnings et les inf.
+# DSLR — Datascience x Logistic Regression
 
-hypothesis — juste sigmoid(X @ theta). @ est le produit matriciel numpy : X est (m, n) (m étudiants, n poids biais inclus), theta est (n,), le résultat est (m,) = une proba par étudiant. Tout se calcule d'un coup, sans boucle.
+Projet 42. Reconstruire le Choixpeau magique : predire la maison de Poudlard
+(`Gryffindor`, `Hufflepuff`, `Ravenclaw`, `Slytherin`) d'un etudiant a partir
+de ses notes, via une regression logistique multi-classe (one-vs-all)
+entrainee par descente de gradient.
 
-cost — la cross-entropy. Elle mesure à quel point les probas prédites collent aux labels y (0/1). Tu ne t'en sers pas pour entraîner : elle sert à vérifier que la descente fonctionne (si elle ne décroît pas à chaque itération, ton learning rate est trop grand ou il y a un bug). Le clip à eps évite log(0) quand une proba touche 0 ou 1.
+Contrainte centrale du sujet : **rien ne doit "faire le travail a notre
+place"**. Les statistiques (`count`, `mean`, `std`, `min`, `max`,
+`percentile`, ...) et l'entrainement/la prediction sont recodes a la main.
+`pandas` sert uniquement a lire les CSV, `numpy` uniquement a l'algebre
+lineaire, `sklearn` uniquement a l'auto-evaluation. Detail complet des regles
+dans [`AGENTS.md`](AGENTS.md).
 
-gradient — le vrai moteur. (1/m)·Xᵀ·(h − y) : h − y est le vecteur des erreurs (m,), Xᵀ est (n, m), le produit donne (n,) = une pente par poids. C'est mathématiquement la dérivée de la cross-entropy (le sigmoid et le log se simplifient joliment pour donner cette forme propre — d'où le choix de cette fonction de coût). La descente fera theta -= lr * gradient.
+## Structure
 
-add_bias — le modèle a besoin d'un terme constant (l'ordonnée à l'origine). L'astuce classique : ajouter une colonne de 1. Ainsi θ₀·1 + θ₁·x₁ + … tombe naturellement dans X·theta, sans traiter le biais à part. C'est pour ça que les briques math n'ont aucun cas spécial.
+```
+.
+├── data/            # datasets fournis (dataset_train.csv, dataset_test.csv)
+├── doc/             # documentation : socle, lexique, une page par module
+├── src/             # code source
+├── AGENTS.md        # regles du projet (regle d'or, architecture, conventions)
+├── requirements.txt
+└── README.md
+```
 
-gradient_descent — la boucle est volontairement bête : iterations fois, theta -= lr * gradient. Chaque pas descend la pente de la cross-entropy. lr (learning rate) dose la taille du pas : trop grand → ça diverge (le coût remonte), trop petit → ça converge trop lentement.
+Modules de `src/` :
 
-train_one_vs_all — le cœur du multi-classe. On ne sait faire que du binaire (une sigmoïde = "oui/non"). Alors on entraîne 4 classifieurs binaires indépendants : "Gryffindor ou pas", "Hufflepuff ou pas", etc. Le vecteur y est reconstruit à chaque tour (1 pour la maison courante, 0 pour les 3 autres). Au predict, on prendra la maison dont le classifieur est le plus confiant (argmax). Le print du coût final te sert de contrôle : il doit être bas (< 0.1 typiquement) et différent d'une maison à l'autre.
+| Module | Role |
+|---|---|
+| `loader.py` | seul point de contact avec pandas/fichiers (lecture CSV, colonnes numeriques) |
+| `math_utils.py` | statistiques et helpers recodes a la main (stdlib uniquement) |
+| `houses.py` | constantes et helpers partages relatifs aux maisons |
+| `preprocessing.py` | preparation des features partagee train/predict (fit/transform) |
+| `describe.py` | reimplementation manuelle de `describe()` |
+| `histogram.py` | histogrammes des notes par maison, par cours |
+| `scatter_plot.py` | nuage de points des deux cours les plus correles |
+| `pair_plot.py` | matrice de nuages de points (a venir) |
+| `logreg_train.py` | entrainement one-vs-all, export des poids |
+| `logreg_predict.py` | prediction des maisons, generation de `houses.csv` |
 
-save_weights — un seul objet JSON qui contient tout le contrat train↔predict. features fige l'ordre des colonnes, houses fige l'ordre des classes, means/stds la normalisation. Le predict n'aura rien à recalculer.
+## Installation
 
-main — l'enchaînement complet : charge → extrait labels + features → fit_params (train uniquement !) → transform → add_bias → entraîne → sauvegarde. Note l'ordre : on fit_params avant transform, et on sauvegarde means/stds pour que le predict les repasse.
+```bash
+python3 -m venv venv          # si le venv n'existe pas deja
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Utilisation
+
+Les commandes se lancent depuis la racine du projet.
+
+### Analyse et visualisation
+
+```bash
+python3 src/describe.py data/dataset_train.csv
+python3 src/histogram.py data/dataset_train.csv [--save histogram.png]
+python3 src/scatter_plot.py data/dataset_train.csv [--save scatter.png]
+```
+
+### Entrainement
+
+```bash
+python3 src/logreg_train.py data/dataset_train.csv -o weights.json \
+        [--lr 0.5] [--iterations 2000]
+```
+
+Produit `weights.json` : liste des features, ordre des maisons, moyennes et
+ecarts-types de normalisation, et les 4 vecteurs de poids.
+
+### Prediction
+
+```bash
+python3 src/logreg_predict.py data/dataset_test.csv weights.json -o houses.csv
+```
+
+Produit `houses.csv` au format `Index,Hogwarts House`, une ligne par etudiant.
+
+## Auto-evaluation
+
+`dataset_test.csv` a une colonne `Hogwarts House` vide (c'est ce qu'on
+predit) : l'accuracy se mesure sur un jeu labellise (le train, ou un split de
+validation) avec `sklearn.metrics.accuracy_score`, autorise UNIQUEMENT pour
+cette verification. Objectif du sujet : >= 98%.
+
+## Fichiers generes
+
+`weights.json`, `houses.csv` et les `.png` sont generes et ne doivent pas
+etre commit (voir `.gitignore`).
+
+## Documentation
+
+Chaque module est documente dans `doc/`. Points d'entree :
+[`doc/common.md`](doc/common.md) (socle partage : `loader`, `math_utils`,
+`preprocessing`) et [`doc/lexique.md`](doc/lexique.md) (vocabulaire stats/ML).
