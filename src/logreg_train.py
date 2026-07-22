@@ -23,6 +23,21 @@ import numpy as np
 from houses import HOUSES, HOUSE_COLUMN, require_house_column
 from preprocessing import fit_params, load_data, select_features, transform
 
+# Features retenues apres analyse du pair plot : on retire Arithmancy et Care
+# of Magical Creatures (aucun pouvoir separant) et Defense Against the Dark
+# Arts (doublon parfait d'Astronomy, |r| = 1). Voir doc/pair_plot.md.
+SELECTED_FEATURES: list[str] = [
+    "Astronomy",
+    "Herbology",
+    "Divination",
+    "Muggle Studies",
+    "Ancient Runes",
+    "History of Magic",
+    "Transfiguration",
+    "Potions",
+    "Charms",
+    "Flying",
+]
 
 def sigmoid(z: np.ndarray) -> np.ndarray:
     """Sigmoide 1 / (1 + exp(-z)), stable numeriquement.
@@ -150,7 +165,7 @@ def main() -> None:
     require_house_column(df)
     labels = df[HOUSE_COLUMN].tolist()
 
-    columns, features = select_features(df)
+    columns, features = select_features(df, SELECTED_FEATURES)
     means, stds = fit_params(columns)
     X = add_bias(np.array(transform(columns, means, stds)))
 

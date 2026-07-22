@@ -29,3 +29,16 @@
   avec `set_xticks([])`/`set_yticks([])` (pas juste les labels) → ~25s de
   gagnées. `rasterized=True` sur les scatters. Résultat : ~70s → ~5s.
   L'affichage interactif reste lent par nature → préférer `--save`.
+- **Sélection de features (via pair plot)** : train sur 10 features (constante
+  `SELECTED_FEATURES` dans logreg_train.py, passée à `select_features`).
+  Retirées : Arithmancy + Care of Magical Creatures (pouvoir discriminant
+  ~0.03/0.07, bruit) et Defense Against the Dark Arts (doublon parfait
+  d'Astronomy, |r|=1). Gardées : Astronomy, Herbology, Divination, Muggle
+  Studies, Ancient Runes, History of Magic, Transfiguration, Potions, Charms,
+  Flying. Accuracy train IDENTIQUE à 13 features (0.981875, 29 erreurs) →
+  confirme que les 3 retirées n'apportaient rien. Le predict hérite via la
+  liste sauvegardée dans weights.json.
+- **À surveiller** : accuracy train (0.9819) à peine > 98% et optimiste →
+  besoin d'un split train/validation pour un chiffre honnête. Penser à
+  régénérer weights.json après tout changement de SELECTED_FEATURES (l'artefact
+  ne se met pas à jour tout seul).
