@@ -18,9 +18,9 @@ import sys
 import matplotlib.pyplot as plt
 
 from houses import HOUSE_COLORS, paired_scores_by_house, require_house_column
-from loader import load_csv, numeric_columns
+from loader import load_csv
 from math_utils import pearson_correlation
-
+from preprocessing import select_features
 
 def rank_pairs(df, courses: list[str]) -> list[tuple[tuple[str, str], float]]:
     """Classe toutes les paires de cours par correlation de Pearson
@@ -75,7 +75,7 @@ def main() -> None:
     df = load_csv(path)
     require_house_column(df)
 
-    courses = [c for c in numeric_columns(df) if c != "Index"]
+    courses, _ = select_features(df)
     if len(courses) < 2:
         raise SystemExit(
             "Erreur : il faut au moins deux colonnes numeriques exploitables "

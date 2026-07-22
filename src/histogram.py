@@ -20,8 +20,9 @@ import sys
 import matplotlib.pyplot as plt
 
 from houses import HOUSE_COLORS, HOUSES, require_house_column, scores_by_house
-from loader import load_csv, numeric_columns
+from loader import load_csv
 from math_utils import mean, relative_std, standardize
+from preprocessing import select_features
 
 BINS: int = 20
 
@@ -109,7 +110,7 @@ def main() -> None:
     df = load_csv(path)
     require_house_column(df)
 
-    courses = [c for c in numeric_columns(df) if c != "Index"]
+    courses, _ = select_features(df)
     if not courses:
         raise SystemExit(
             "Erreur : aucune colonne numerique exploitable dans ce fichier "

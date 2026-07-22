@@ -19,8 +19,9 @@ import sys
 
 import pandas as pd
 
-from loader import load_csv, numeric_columns
+from loader import load_csv
 from math_utils import count, maximum, mean, minimum, percentile, std
+from preprocessing import select_features
 
 STAT_LABELS: tuple[str, ...] = ("Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max")
 LABEL_WIDTH: int = 8
@@ -46,7 +47,7 @@ def compute_column_stats(values: list[float]) -> dict[str, float]:
 def compute_describe(df: pd.DataFrame) -> dict[str, dict[str, float]]:
     """Calcule les stats descriptives de toutes les colonnes numeriques,
     hors 'Index' (identifiant de ligne, jamais une feature statistique)."""
-    columns = [c for c in numeric_columns(df) if c != "Index"]
+    columns, _ = select_features(df)
     if not columns:
         raise SystemExit(
             "Erreur : aucune colonne numerique exploitable dans ce fichier "
