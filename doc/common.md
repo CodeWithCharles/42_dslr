@@ -64,6 +64,24 @@ les memes valeurs que `pandas.DataFrame.describe()` sans jamais l'appeler.
 
 Toutes retournent `NaN` si la sequence ne contient aucune valeur exploitable.
 
+### Statistiques supplementaires (bonus describe)
+
+Ajoutees pour le bonus "add more fields to describe", recodees a la main comme
+le reste (aucune fonction toute faite). Elles suivent le meme contrat (NaN
+ignores, `NaN` si trop peu de valeurs) et matchent pandas au chiffre pres :
+
+- `variance(values) -> float` : variance d'echantillon (diviseur `n-1`), soit
+  le carre de `std`. `NaN` si moins de 2 valeurs.
+- `skewness(values) -> float` : asymetrie ajustee Fisher-Pearson
+  (`pandas.skew()`). 0 = symetrique, positif = queue a droite, negatif = queue
+  a gauche. Definie pour `n >= 3`.
+- `kurtosis(values) -> float` : kurtosis excedentaire non biaisee
+  (`pandas.kurt()`). 0 = loi normale, positif = queues lourdes, negatif =
+  queues legeres. Definie pour `n >= 4`.
+
+`describe.py` en deduit aussi `Range` (`max - min`) et `IQR` (`75% - 25%`)
+directement, sans nouvelle fonction (voir `doc/describe.md`).
+
 - `pearson_correlation(x, y) -> float` : coefficient de correlation de
   Pearson entre deux colonnes alignees, `cov(x, y) / (std(x) * std(y))`.
   Nettoie les paires par NaN alignes (une valeur manquante sur l'un des

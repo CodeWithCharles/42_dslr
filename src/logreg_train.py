@@ -6,11 +6,15 @@ Entraine un classifieur binaire par maison sur dataset_train.csv, puis
 sauvegarde les poids et les parametres de normalisation (means/stds) dans un
 fichier JSON relu par logreg_predict.py. numpy est utilise uniquement pour
 l'algebre lineaire (produits matriciels, exp), jamais pour un raccourci
-statistique. Voir doc/common.md pour le socle partage, doc/preprocessing.md
-pour la preparation des features et doc/logreg_train.md pour le detail.
+statistique. Trois optimiseurs sont disponibles : batch (mandatory), sgd et
+minibatch (bonus). Voir doc/common.md pour le socle partage,
+doc/preprocessing.md pour la preparation des features et doc/logreg_train.md
+pour le detail.
 
 Usage : python3 logreg_train.py <dataset_train.csv> [-o weights.json]
                 [--lr 0.5] [--iterations 2000]
+                [--optimizer batch|sgd|minibatch] [--batch-size 32]
+                [--seed N]
 """
 
 from __future__ import annotations
@@ -100,11 +104,87 @@ def gradient_descent(
 ) -> np.ndarray:
     """Descente de gradient batch : a chaque pas, theta -= lr * gradient.
 
-    On repete `iterations` fois. Chaque pas deplace theta dans la direction
-    qui fait le plus decroitre la cross-entropy."""
+    On repete `iterations` fois. Chaque pas utilise TOUS les etudiants et
+    deplace theta dans la direction qui fait le plus decroitre la
+    cross-entropy. Convergence lisse mais chaque pas coute cher."""
     for _ in range(iterations):
         theta = theta - lr * gradient(X, y, theta)
     return theta
+
+
+def stochastic_gradient_descent(
+    X: np.ndarray,
+    y: np.ndarray,
+    theta: np.ndarray,
+    lr: float,
+    iterations: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Descente de gradient stochastique (bonus) : une mise a jour par etudiant.
+
+    A chaque epoque (`iterations` epoques au total), on parcourt les etudiants
+    dans un ordre aleatoire (`rng`) et on met a jour theta apres CHAQUE
+    etudiant. Beaucoup plus de pas, chacun bruite (gradient d'un seul point),
+    mais chaque pas est tres peu couteux. Le bruit peut aider a echapper aux
+    plateaux."""
+    m = X.shape[0]
+    for _ in range(iterations):
+        for i in rng.permutation(m):
+            xi = X[i:i + 1]
+            yi = y[i:i + 1]
+            theta = theta - lr * gradient(xi, yi, theta)
+    return theta
+
+
+def mini_batch_gradient_descent(
+    X: np.ndarray,
+    y: np.ndarray,
+    theta: np.ndarray,
+    lr: float,
+    iterations: int,
+    batch_size: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Descente de gradient par mini-lots (bonus) : compromis batch / stochastique.
+
+    A chaque epoque, on melange les etudiants (`rng`) et on met a jour theta
+    apres chaque lot de `batch_size` etudiants. Moins bruite que le SGD pur,
+    plus reactif que le batch complet. C'est le reglage le plus courant en
+    pratique."""
+    m = X.shape[0]
+    for _ in range(iterations):
+        order = rng.permutation(m)
+        for start in range(0, m, batch_size):
+            idx = order[start:start + batch_size]
+            theta = theta - lr * gradient(X[idx], y[idx], theta)
+    return theta
+
+
+def optimize(
+    X: np.ndarray,
+    y: np.ndarray,
+    theta: np.ndarray,
+    lr: float,
+    iterations: int,
+    optimizer: str,
+    batch_size: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Aiguille vers l'algorithme d'optimisation demande.
+
+    'batch' = descente complete (mandatory), 'sgd' = stochastique,
+    'minibatch' = par mini-lots (les deux derniers sont le bonus). Pour 'sgd'
+    et 'minibatch', `iterations` compte des EPOQUES (passages complets sur le
+    dataset), pas des pas unitaires comme pour 'batch'."""
+    if optimizer == "batch":
+        return gradient_descent(X, y, theta, lr, iterations)
+    if optimizer == "sgd":
+        return stochastic_gradient_descent(X, y, theta, lr, iterations, rng)
+    if optimizer == "minibatch":
+        return mini_batch_gradient_descent(
+            X, y, theta, lr, iterations, batch_size, rng
+        )
+    raise SystemExit(f"Erreur : optimiseur inconnu '{optimizer}'.")
 
 
 def train_one_vs_all(
@@ -112,17 +192,23 @@ def train_one_vs_all(
     labels: list[str],
     lr: float,
     iterations: int,
+    optimizer: str = "batch",
+    batch_size: int = 32,
+    seed: int | None = None,
 ) -> dict[str, list[float]]:
     """Entraine un classifieur binaire par maison (one-vs-all).
 
     Pour chaque maison : y vaut 1 si l'etudiant y appartient, 0 sinon. On
-    part de theta = 0 et on descend. Resultat : un vecteur de poids par
-    maison, range dans un dict {maison: poids}."""
+    part de theta = 0 et on optimise avec l'algorithme choisi (`optimizer`).
+    Resultat : un vecteur de poids par maison, range dans un dict
+    {maison: poids}. `seed` rend reproductible le melange des optimiseurs
+    stochastiques."""
+    rng = np.random.default_rng(seed)
     weights: dict[str, list[float]] = {}
     for house in HOUSES:
         y = np.array([1.0 if label == house else 0.0 for label in labels])
         theta = np.zeros(X.shape[1])
-        theta = gradient_descent(X, y, theta, lr, iterations)
+        theta = optimize(X, y, theta, lr, iterations, optimizer, batch_size, rng)
         weights[house] = theta.tolist()
         print(f"\t{house:12s} entraine (cout final {cost(X, y, theta):.4f})")
     return weights
@@ -157,9 +243,25 @@ def main() -> None:
     )
     parser.add_argument("--lr", type=float, default=0.5, help="learning rate")
     parser.add_argument(
-        "--iterations", type=int, default=2000, help="nombre d'iterations"
+        "--iterations", type=int, default=2000,
+        help="nombre d'iterations (batch) ou d'epoques (sgd/minibatch)"
+    )
+    parser.add_argument(
+        "--optimizer", choices=["batch", "sgd", "minibatch"], default="batch",
+        help="algorithme d'optimisation (defaut : batch)"
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=32,
+        help="taille des mini-lots (optimizer minibatch)"
+    )
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="graine pour le melange des optimiseurs sgd/minibatch"
     )
     args = parser.parse_args()
+
+    if args.batch_size <= 0:
+        raise SystemExit("Erreur : --batch-size doit etre >= 1.")
 
     df = load_data(args.dataset)
     require_house_column(df)
@@ -170,10 +272,13 @@ def main() -> None:
     X = add_bias(np.array(transform(columns, means, stds)))
 
     print(
-        f"Entrainement sur {X.shape[0]} etudiants, {len(features)} features, "
-        f"lr={args.lr}, {args.iterations} iterations :"
+        f"Entrainement ({args.optimizer}) sur {X.shape[0]} etudiants, "
+        f"{len(features)} features, lr={args.lr}, {args.iterations} iterations :"
     )
-    weights = train_one_vs_all(X, labels, args.lr, args.iterations)
+    weights = train_one_vs_all(
+        X, labels, args.lr, args.iterations,
+        optimizer=args.optimizer, batch_size=args.batch_size, seed=args.seed,
+    )
     save_weights(args.output, features, means, stds, weights)
     print(f"Poids sauvegardes dans '{args.output}'.")
 

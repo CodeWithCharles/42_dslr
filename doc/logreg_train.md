@@ -11,6 +11,9 @@ ce document ne detaille que ce qui est propre a l'entrainement.
 ```bash
 python3 src/logreg_train.py data/dataset_train.csv -o weights.json
 python3 src/logreg_train.py data/dataset_train.csv --lr 0.5 --iterations 2000
+python3 src/logreg_train.py data/dataset_train.csv --optimizer sgd --iterations 30
+python3 src/logreg_train.py data/dataset_train.csv --optimizer minibatch \
+        --batch-size 32 --iterations 200 --seed 42
 ```
 
 | Argument | Role | Defaut |
@@ -18,7 +21,10 @@ python3 src/logreg_train.py data/dataset_train.csv --lr 0.5 --iterations 2000
 | `dataset` (positionnel) | chemin du CSV d'entrainement | requis |
 | `-o`, `--output` | fichier de poids en sortie | `weights.json` |
 | `--lr` | learning rate de la descente | `0.5` |
-| `--iterations` | nombre d'iterations | `2000` |
+| `--iterations` | iterations (batch) ou epoques (sgd/minibatch) | `2000` |
+| `--optimizer` | `batch`, `sgd` ou `minibatch` (bonus) | `batch` |
+| `--batch-size` | taille des mini-lots (optimizer `minibatch`) | `32` |
+| `--seed` | graine du melange (sgd/minibatch), reproductibilite | `None` |
 
 `weights.json` est un fichier genere : il ne doit pas etre commit.
 
@@ -72,10 +78,41 @@ poids de features dans l'ordre de `features`.
 
 ## Descente de gradient
 
-`gradient_descent` repete `iterations` fois la mise a jour
-`theta -= lr * gradient(X, y, theta)`. `theta` part de zero. Un `lr` trop
-grand fait diverger (le cout remonte), trop petit ralentit la convergence.
-Le cout final affiche par maison sert de controle : il doit etre bas.
+`gradient_descent` (le mandatory) repete `iterations` fois la mise a jour
+`theta -= lr * gradient(X, y, theta)` sur TOUT le dataset. `theta` part de
+zero. Un `lr` trop grand fait diverger (le cout remonte), trop petit ralentit
+la convergence. Le cout final affiche par maison sert de controle : il doit
+etre bas.
+
+## Optimiseurs (bonus)
+
+Le sujet propose en bonus la descente stochastique et d'autres algorithmes
+d'optimisation. `--optimizer` choisit lequel ; tous partagent la meme brique
+`gradient` et le meme dispatcher `optimize` :
+
+| Optimiseur | Mise a jour de theta | `--iterations` compte |
+|---|---|---|
+| `batch` | 1 pas sur tout le dataset | des iterations |
+| `sgd` | 1 pas par etudiant, ordre melange | des epoques (passages complets) |
+| `minibatch` | 1 pas par lot de `--batch-size`, ordre melange | des epoques |
+
+- **`batch`** : convergence tres lisse mais chaque pas coute cher (gradient sur
+  1600 etudiants). C'est l'algorithme du mandatory.
+- **`sgd`** (stochastic gradient descent) : un pas par etudiant. Beaucoup plus
+  de pas par epoque, chacun bruite (gradient d'un seul point). Le bruit aide a
+  sortir des plateaux ; il faut bien moins d'epoques (~30 suffisent ici).
+- **`minibatch`** : compromis courant. Un pas par lot de `--batch-size`
+  etudiants — moins bruite que le SGD pur, plus reactif que le batch complet.
+
+**Semantique de `--iterations`** : pour `batch` c'est un nombre de pas ; pour
+`sgd`/`minibatch` c'est un nombre d'**epoques** (chaque epoque fait `m` ou
+`m / batch_size` pas). D'ou des valeurs par defaut tres differentes selon
+l'optimiseur.
+
+Le melange d'ordre des optimiseurs stochastiques utilise un `numpy.random`
+Generator seede par `--seed` (reproductibilite). Les trois optimiseurs
+atteignent la meme accuracy sur ce dataset (~0.982) ; ils ne changent que le
+chemin de convergence, pas le modele final.
 
 ## Format du fichier de poids
 
@@ -110,8 +147,9 @@ Les erreurs de fichier sont gerees par `loader.load_csv` (voir
 
 - Hyperparametres (`lr`, iterations) a ajuster empiriquement pour viser
   >= 98% d'accuracy ; pas de recherche automatique implementee.
-- Descente batch simple : pas de mini-batch ni de critere d'arret anticipe
-  sur la convergence du cout.
-- Toutes les features numeriques sont utilisees par defaut ; une selection
-  affinee (via le pair plot) reste possible en passant une liste explicite a
-  `select_features`.
+- Trois optimiseurs disponibles (`batch`, `sgd`, `minibatch`) mais aucun
+  critere d'arret anticipe sur la convergence du cout : on fait toujours le
+  nombre d'iterations/epoques demande.
+- Pas de learning rate adaptatif (momentum, Adam...) ni de regularisation.
+- Selection de features figee dans `SELECTED_FEATURES` (issue du pair plot) ;
+  passer une autre liste a `select_features` reste possible.

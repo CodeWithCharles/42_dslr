@@ -42,3 +42,20 @@
   besoin d'un split train/validation pour un chiffre honnête. Penser à
   régénérer weights.json après tout changement de SELECTED_FEATURES (l'artefact
   ne se met pas à jour tout seul).
+
+## Bonus (codés directement, sans commit/push)
+- **describe — champs en plus** : ajout de `Var`, `Range`, `IQR`, `Skew`,
+  `Kurt`. `Var`/`Skew`/`Kurt` recodés main dans `math_utils` (variance n-1,
+  skew/kurt = formules non biaisées de pandas → matchent au chiffre près).
+  `Range`/`IQR` déduits des stats déjà calculées (aucune nouvelle fonction).
+- **Bug préexistant corrigé dans `describe.compute_describe`** : il itérait sur
+  le 1er retour de `select_features` (les DONNÉES colonnes) au lieu des NOMS →
+  `KeyError` sur `df[col]`. Corrigé en zippant `(features, columns)` et en
+  réutilisant directement les données extraites (plus de `df[col].tolist()`).
+- **Optimiseurs (bonus SGD + autres)** : `--optimizer batch|sgd|minibatch`
+  dans logreg_train. Brique `gradient` partagée, dispatcher `optimize`,
+  `train_one_vs_all` étendu (params `optimizer`/`batch_size`/`seed` avec
+  défauts → evaluate.py inchangé). Pour sgd/minibatch, `--iterations` = époques
+  (pas des pas). Mélange via `np.random.default_rng(seed)`. Les 3 optimiseurs
+  atteignent la même accuracy (~0.982) : seul le chemin de convergence change.
+  Rappel sujet : bonus évalué SEULEMENT si le mandatory est parfait.

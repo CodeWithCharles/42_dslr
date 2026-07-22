@@ -3,10 +3,11 @@ describe.py — Reimplementation manuelle de pandas.DataFrame.describe().
 
 Calcule les statistiques descriptives (count, mean, std, min, 25%, 50%,
 75%, max) de toutes les colonnes numeriques d'un dataset, hors 'Index'
-(identifiant de ligne, pas une feature). Toutes les statistiques sont
-calculees via math_utils.py (aucun calcul pandas/numpy/statistics ici) ;
-voir doc/common.md pour le detail du socle partage et doc/describe.md pour
-le fonctionnement propre a ce script.
+(identifiant de ligne, pas une feature), plus des champs supplementaires en
+bonus (var, range, iqr, skew, kurt). Toutes les statistiques sont calculees
+via math_utils.py (aucun calcul pandas/numpy/statistics ici) ; voir
+doc/common.md pour le detail du socle partage et doc/describe.md pour le
+fonctionnement propre a ce script.
 
 Usage : python3 describe.py <dataset.csv>
 """
@@ -20,10 +21,23 @@ import sys
 import pandas as pd
 
 from loader import load_csv
-from math_utils import count, maximum, mean, minimum, percentile, std
+from math_utils import (
+    count,
+    kurtosis,
+    maximum,
+    mean,
+    minimum,
+    percentile,
+    skewness,
+    std,
+    variance,
+)
 from preprocessing import select_features
 
-STAT_LABELS: tuple[str, ...] = ("Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max")
+STAT_LABELS: tuple[str, ...] = (
+    "Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max",
+    "Var", "Range", "IQR", "Skew", "Kurt",
+)
 LABEL_WIDTH: int = 8
 COL_WIDTH: int = 16
 NUMBER_DECIMALS: int = 6
@@ -31,29 +45,48 @@ DEFAULT_TERMINAL_WIDTH: int = 80
 
 
 def compute_column_stats(values: list[float]) -> dict[str, float]:
-    """Calcule les 8 statistiques de describe() pour une colonne."""
+    """Calcule les statistiques describe() (8 du mandatory + 5 en bonus)
+    pour une colonne.
+
+    Les 8 premieres reproduisent pandas.describe() au chiffre pres ; les
+    5 suivantes (variance, etendue, ecart interquartile, asymetrie,
+    kurtosis) sont le bonus 'add more fields'. Range et IQR se deduisent des
+    stats deja calculees ; var/skew/kurt sont recodees dans math_utils.
+    """
+    q1 = percentile(values, 25)
+    q3 = percentile(values, 75)
+    lo = minimum(values)
+    hi = maximum(values)
     return {
         "Count": count(values),
         "Mean": mean(values),
         "Std": std(values),
-        "Min": minimum(values),
-        "25%": percentile(values, 25),
+        "Min": lo,
+        "25%": q1,
         "50%": percentile(values, 50),
-        "75%": percentile(values, 75),
-        "Max": maximum(values),
+        "75%": q3,
+        "Max": hi,
+        "Var": variance(values),
+        "Range": hi - lo,
+        "IQR": q3 - q1,
+        "Skew": skewness(values),
+        "Kurt": kurtosis(values),
     }
 
 
 def compute_describe(df: pd.DataFrame) -> dict[str, dict[str, float]]:
     """Calcule les stats descriptives de toutes les colonnes numeriques,
     hors 'Index' (identifiant de ligne, jamais une feature statistique)."""
-    columns, _ = select_features(df)
-    if not columns:
+    columns, features = select_features(df)
+    if not features:
         raise SystemExit(
             "Erreur : aucune colonne numerique exploitable dans ce fichier "
             "(hors 'Index')."
         )
-    return {col: compute_column_stats(df[col].tolist()) for col in columns}
+    return {
+        name: compute_column_stats(values)
+        for name, values in zip(features, columns)
+    }
 
 
 def _truncate(name: str, width: int) -> str:

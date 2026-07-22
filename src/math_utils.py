@@ -10,6 +10,8 @@ Contient :
   - les fonctions statistiques recodees A LA MAIN (count, mean, std,
     minimum, maximum, percentile)
     (describe, np.mean, np.std, np.percentile, etc.) ;
+  - les statistiques supplementaires du bonus describe (variance,
+    skewness, kurtosis) recodees a la main elles aussi ;
   - les helpers de preparation des features : fill_na_with_mean,
     standardize.
 
@@ -120,6 +122,72 @@ def percentile(values: Iterable, p: float) -> float:
         return data[int(rank)]
     weight = rank - lower
     return data[lower] * (1.0 - weight) + data[upper] * weight
+
+
+# ---------------------------------------------------------------------------
+# Statistiques supplementaires (bonus describe) — recodees a la main
+# ---------------------------------------------------------------------------
+
+def variance(values: Iterable) -> float:
+    """Variance d'echantillon (diviseur n-1, comme pandas.var()).
+
+    C'est le carre de `std`, mais calcule directement pour rester lisible
+    en tant que champ describe a part entiere. Retourne NaN si moins de
+    2 valeurs.
+    """
+    data = _clean(values)
+    n = len(data)
+    if n < 2:
+        return float("nan")
+    m = mean(data)
+    acc = 0.0
+    for v in data:
+        acc += (v - m) ** 2
+    return acc / (n - 1)
+
+
+def skewness(values: Iterable) -> float:
+    """Asymetrie (skewness) ajustee Fisher-Pearson, comme pandas.skew().
+
+    Mesure l'asymetrie de la distribution : 0 = symetrique, > 0 = queue
+    etiree a droite, < 0 = queue etiree a gauche. Version non biaisee
+    (facteur n / ((n-1)(n-2)) et ecart-type en n-1), definie pour n >= 3.
+    """
+    data = _clean(values)
+    n = len(data)
+    if n < 3:
+        return float("nan")
+    m = mean(data)
+    s = std(data)
+    if s == 0 or math.isnan(s):
+        return float("nan")
+    acc = 0.0
+    for v in data:
+        acc += ((v - m) / s) ** 3
+    return (n / ((n - 1) * (n - 2))) * acc
+
+
+def kurtosis(values: Iterable) -> float:
+    """Kurtosis excedentaire non biaisee, comme pandas.kurt().
+
+    Mesure l'epaisseur des queues face a une loi normale : 0 = normale,
+    > 0 = queues lourdes (valeurs extremes frequentes), < 0 = queues
+    legeres. Version non biaisee, definie pour n >= 4.
+    """
+    data = _clean(values)
+    n = len(data)
+    if n < 4:
+        return float("nan")
+    m = mean(data)
+    s = std(data)
+    if s == 0 or math.isnan(s):
+        return float("nan")
+    acc = 0.0
+    for v in data:
+        acc += ((v - m) / s) ** 4
+    first = (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))
+    second = (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
+    return first * acc - second
 
 
 # ---------------------------------------------------------------------------

@@ -2,9 +2,11 @@
 
 Reimplementation manuelle de `pandas.DataFrame.describe()` : calcule pour
 chaque colonne numerique (hors `Index`) les statistiques `Count`, `Mean`,
-`Std`, `Min`, `25%`, `50%`, `75%`, `Max`. Voir [`doc/common.md`](common.md)
-pour le socle partage (`loader.py`, `math_utils.py`, formules, regle d'or du
-sujet) : ce document ne detaille que ce qui est propre a ce script.
+`Std`, `Min`, `25%`, `50%`, `75%`, `Max`, ainsi que des champs
+supplementaires en bonus (`Var`, `Range`, `IQR`, `Skew`, `Kurt`). Voir
+[`doc/common.md`](common.md) pour le socle partage (`loader.py`,
+`math_utils.py`, formules, regle d'or du sujet) : ce document ne detaille que
+ce qui est propre a ce script.
 
 ## Utilisation
 
@@ -21,14 +23,34 @@ Un seul argument attendu : le chemin du CSV a analyser.
    voir `doc/common.md`).
 2. `loader.numeric_columns(df)` recupere les colonnes numeriques, puis
    `compute_describe` retire `"Index"` de la liste.
-3. Pour chaque colonne restante, `compute_column_stats` appelle les 8
+3. Pour chaque colonne restante, `compute_column_stats` appelle les
    fonctions de `math_utils` (voir `doc/common.md` pour les formules) et
-   construit un `dict[str, float]` cle par libelle de stat.
+   construit un `dict[str, float]` cle par libelle de stat (8 champs du
+   mandatory + 5 champs bonus).
 4. `format_table` met en forme le resultat en texte ; `print_describe`
    l'affiche.
 
 Aucun calcul statistique n'a lieu dans `describe.py` lui-meme : le script se
 contente d'orchestrer `loader.py` et `math_utils.py`.
+
+## Champs supplementaires (bonus)
+
+Le sujet propose en bonus d'"ajouter des champs a describe". Cinq lignes
+s'ajoutent donc apres les 8 du mandatory :
+
+| Champ | Definition | Source |
+|---|---|---|
+| `Var` | variance d'echantillon (`std^2`, diviseur `n-1`) | `math_utils.variance` |
+| `Range` | etendue `Max - Min` | deduit des stats deja calculees |
+| `IQR` | ecart interquartile `75% - 25%` | deduit des stats deja calculees |
+| `Skew` | asymetrie ajustee Fisher-Pearson (`pandas.skew()`) | `math_utils.skewness` |
+| `Kurt` | kurtosis excedentaire non biaisee (`pandas.kurt()`) | `math_utils.kurtosis` |
+
+`Range` et `IQR` ne demandent aucune nouvelle fonction : `compute_column_stats`
+reutilise les `min`/`max`/percentiles deja obtenus. `Var`, `Skew` et `Kurt`
+sont recodees a la main dans `math_utils` (voir `doc/common.md`), jamais via
+`pandas`/`numpy`/`statistics`, et retrouvent les valeurs de pandas au chiffre
+pres. `Skew` est `NaN` pour moins de 3 valeurs, `Kurt` pour moins de 4.
 
 ## Mise en forme du tableau
 
@@ -87,7 +109,8 @@ Les erreurs de fichier (introuvable, CSV illisible) sont gerees par
 
 ## Limites / extensions futures non implementees
 
-Cette version couvre uniquement le mandatory du sujet (8 statistiques). Des
-statistiques supplementaires (mode, skewness, etendue/IQR, etc.) pourraient
-etre ajoutees plus tard en bonus, tant qu'elles restent recodees a la main
-dans `math_utils.py` — non implementees ici.
+Le mandatory (8 statistiques) et le bonus "add more fields" (5 champs
+supplementaires) sont couverts. D'autres statistiques (mode, ecart absolu
+median, coefficient de variation, etc.) pourraient encore etre ajoutees sur
+le meme principe (recodees a la main dans `math_utils.py`) — non implementees
+ici.
