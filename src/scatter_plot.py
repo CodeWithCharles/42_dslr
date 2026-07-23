@@ -75,7 +75,7 @@ def main() -> None:
     df = load_csv(path)
     require_house_column(df)
 
-    courses, _ = select_features(df)
+    _, courses = select_features(df)
     if len(courses) < 2:
         raise SystemExit(
             "Erreur : il faut au moins deux colonnes numeriques exploitables "

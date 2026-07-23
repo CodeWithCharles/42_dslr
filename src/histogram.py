@@ -110,7 +110,7 @@ def main() -> None:
     df = load_csv(path)
     require_house_column(df)
 
-    courses, _ = select_features(df)
+    _, courses = select_features(df)
     if not courses:
         raise SystemExit(
             "Erreur : aucune colonne numerique exploitable dans ce fichier "
